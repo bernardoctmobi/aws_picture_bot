@@ -5,7 +5,7 @@ const client = new RekognitionClient({});
 const botToken = process.env.botToken;
 const bot = new TelegramBot(`${botToken}`, { polling: false });
 
-export const lambdaHandler = async (event, context) => {
+export const lambdaHandler = async (event) => {
     const body = JSON.parse(event.body);
     const chatId = body.message.chat.id;
     if (body.message && body.message.document) {
@@ -59,9 +59,7 @@ async function getLabels(telegramFile) {
         const command = new DetectLabelsCommand(input);
         const response = await client.send(command);
         console.log(response);
-        return {
-            labels: response.Labels
-        };
+        return response.Labels;
     } catch (err) {
         console.log(err);
         throw new Error('Non è stato possibile recuperare le etichette');
@@ -69,21 +67,19 @@ async function getLabels(telegramFile) {
 }
 
 async function sendResponse(labels, chatId) {
-    if (!labels.labels) {
-        await bot.sendMessage(chatId, `${labels.error}`);
+    if (!labels) {
+        await bot.sendMessage(chatId, `Etichette mancanti`);
         return {
             statusCode: 500,
-            body: JSON.stringify({
-                message: labels.error
-            })
+            body: `Etichette mancanti`
         };
     };
-    const labelsArray = labels.labels.map(label => label.Name);
+    const labelsArray = labels.map(label => label.Name);
     await bot.sendMessage(chatId, `Etichette estratte: ${labelsArray.join(', ')}`);
     return {
         statusCode: 200,
         body: JSON.stringify({
-            labels: labels.labels,
+            labels: labels,
         })
     };
 }
