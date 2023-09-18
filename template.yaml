@@ -24,17 +24,6 @@ Resources:
           Properties:
             Path: /send
             Method: post
-            # RestApiId: !Ref Api
       Policies:
         - RekognitionLabelsPolicy:
             Resource: "*"
-
-  # Api:
-  #   Type: AWS::Serverless::Api
-  #   Properties:
-  #     StageName: dev
-  #     DefinitionBody:
-  #       "Fn::Transform":
-  #         Name: AWS::Include
-  #         Parameters:
-  #           Location: ./apidefinition.yaml

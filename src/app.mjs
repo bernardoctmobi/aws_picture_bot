@@ -7,12 +7,49 @@ const bot = new TelegramBot(`${botToken}`, { polling: false });
 
 export const lambdaHandler = async (event, context) => {
     const body = JSON.parse(event.body);
+    const chatId = body.message.chat.id;
     if (body.message && body.message.document) {
+        bot.sendMessage(chatId, `Sto analizzando l'immagine, attendi per favore`);
         const document = body.message.document;
         const fileId = document.file_id;
-        const telegramFile = await getTelegramFile(fileId);
-        const chatId = body.message.chat.id;
-        bot.sendMessage(chatId, `Sto analizzando l'immagine, attendi per favore`);
+
+        const response = await getTelegramFile(fileId)
+            .then(telegramFile => getLabels(telegramFile))
+            .then(labels => sendResponse(labels, chatId))
+            .catch(error => {
+                console.error('Errore: ', error);
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({
+                        message: error
+                    })
+                };
+            });
+        console.log(response);
+        return response;
+    } else {
+        await bot.sendMessage(chatId, `Non ci sono immagini da analizzare`);
+        return {
+            statusCode: 200,
+            body: JSON.stringify('Non ci sono immagini da analizzare...')
+        };
+    }
+};
+
+async function getTelegramFile(fileId) {
+    const apiUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`;
+    const response = await axios.get(apiUrl);
+    if (response.data.ok) {
+        const file = response.data.result;
+        const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file.file_path}`;
+        const fileData = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+        return Buffer.from(fileData.data).toString('base64');
+    }
+    throw new Error('Errore nel recupero del file da Telegram');
+}
+
+async function getLabels(telegramFile) {
+    try {
         const input = {
             Image: {
                 Bytes: Buffer.from(telegramFile, 'base64')
@@ -22,39 +59,33 @@ export const lambdaHandler = async (event, context) => {
             ]
         };
         const command = new DetectLabelsCommand(input);
-        try {
-            const response = await client.send(command);
-            console.log(response);
-            const labelsArray = response.Labels.map(label => label.Name);
-            console.log(`Etichette estratte: ${labelsArray.join(', ')}`);
-            await bot.sendMessage(chatId, `Etichette estratte: ${labelsArray.join(', ')}`);
-            return {
-                'statusCode': 200,
-                'body': JSON.stringify({
-                    Labels: response.Labels,
-                })
-            }
-        } catch (err) {
-            console.log(err);
-            return err;
-        }
-    } else {
+        const response = await client.send(command);
+        console.log(response);
         return {
-            statusCode: 200,
-            body: JSON.stringify('Messaggio ricevuto ma non contiene un documento.')
-        }
+            labels: response.Labels
+        };
+    } catch (err) {
+        console.log(err);
+        throw new Error('Non è stato possibile recuperare le etichette');
     }
-};
+}
 
-async function getTelegramFile(fileId) {
-    const apiUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`;
-    const response = await axios.get(apiUrl);
-    console.log(response);
-    if (response.data.ok) {
-        const file = response.data.result;
-        const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file.file_path}`;
-        const fileData = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-        return Buffer.from(fileData.data).toString('base64');
-    }
-    throw new Error('Errore nel recupero del file da Telegram');
+async function sendResponse(labels, chatId) {
+    if (!labels.labels) {
+        await bot.sendMessage(chatId, `${labels.error}`);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                Message: labels.error,
+            })
+        };
+    };
+    const labelsArray = labels.labels.map(label => label.Name);
+    await bot.sendMessage(chatId, `Etichette estratte: ${labelsArray.join(', ')}`);
+    return {
+        statusCode: 200,
+        body: JSON.stringify({
+            Labels: labels.labels,
+        })
+    };
 }
