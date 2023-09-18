@@ -20,9 +20,7 @@ export const lambdaHandler = async (event, context) => {
                 console.error('Errore: ', error);
                 return {
                     statusCode: 500,
-                    body: JSON.stringify({
-                        message: error
-                    })
+                    body: JSON.stringify({ message: error })
                 };
             });
         console.log(response);
@@ -31,7 +29,7 @@ export const lambdaHandler = async (event, context) => {
         await bot.sendMessage(chatId, `Non ci sono immagini da analizzare`);
         return {
             statusCode: 200,
-            body: JSON.stringify('Non ci sono immagini da analizzare...')
+            body: 'Non ci sono immagini da analizzare...'
         };
     }
 };
@@ -76,7 +74,7 @@ async function sendResponse(labels, chatId) {
         return {
             statusCode: 500,
             body: JSON.stringify({
-                Message: labels.error,
+                message: labels.error
             })
         };
     };
@@ -85,7 +83,7 @@ async function sendResponse(labels, chatId) {
     return {
         statusCode: 200,
         body: JSON.stringify({
-            Labels: labels.labels,
+            labels: labels.labels,
         })
     };
 }
