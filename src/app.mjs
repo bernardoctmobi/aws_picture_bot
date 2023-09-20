@@ -11,9 +11,7 @@ export const lambdaHandler = async (event) => {
     if (body.message && (body.message.document || body.message.photo)) {
         bot.sendMessage(chatId, `Sto analizzando l'immagine, attendi per favore`);
         const media = body.message.document ?? body.message.photo;
-        //const document = body.message.document;
         const fileId = media.file_id ?? media[2].file_id;
-        //const fileId = document.file_id;
 
         const response = await getTelegramFile(fileId)
             .then(telegramFile => getLabels(telegramFile))
