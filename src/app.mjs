@@ -8,10 +8,12 @@ const bot = new TelegramBot(`${botToken}`, { polling: false });
 export const lambdaHandler = async (event) => {
     const body = JSON.parse(event.body);
     const chatId = body.message.chat.id;
-    if (body.message && body.message.document) {
+    if (body.message && (body.message.document || body.message.photo)) {
         bot.sendMessage(chatId, `Sto analizzando l'immagine, attendi per favore`);
-        const document = body.message.document;
-        const fileId = document.file_id;
+        const media = body.message.document ?? body.message.photo;
+        //const document = body.message.document;
+        const fileId = media.file_id ?? media[2].file_id;
+        //const fileId = document.file_id;
 
         const response = await getTelegramFile(fileId)
             .then(telegramFile => getLabels(telegramFile))
